@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ToDoリスト</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      display: flex;
+      justify-content: center;
+      padding: 64px 16px 32px;
+      color: #334155;
+    }
+    #app { width: 100%; max-width: 448px; }
+
+    h1 { font-size: 1.875rem; font-weight: 700; color: #1e293b; letter-spacing: -0.025em; }
+    #counter { font-size: 0.875rem; color: #94a3b8; margin-top: 4px; }
+    #counter span { font-weight: 600; color: #475569; }
+
+    .input-row { display: flex; gap: 8px; margin: 32px 0 24px; }
+    input[type="text"] {
+      flex: 1; padding: 12px 16px; border-radius: 12px;
+      border: 1px solid #e2e8f0; background: #fff;
+      font-size: 0.9rem; color: #1e293b; outline: none;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+      transition: box-shadow .2s, border-color .2s;
+    }
+    input[type="text"]::placeholder { color: #94a3b8; }
+    input[type="text"]:focus { border-color: #94a3b8; box-shadow: 0 0 0 3px rgba(100,116,139,.15); }
+
+    button.add-btn {
+      padding: 12px 20px; background: #1e293b; color: #fff;
+      border: none; border-radius: 12px; font-size: 0.9rem; font-weight: 500;
+      cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,.12);
+      transition: background .15s;
+    }
+    button.add-btn:hover { background: #334155; }
+    button.add-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    #empty-state { text-align: center; padding: 64px 0; color: #94a3b8; }
+    #empty-state .icon { font-size: 2.5rem; margin-bottom: 12px; }
+    #empty-state p { font-size: 0.875rem; }
+    #empty-state small { font-size: 0.75rem; margin-top: 4px; display: block; }
+
+    #todo-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+
+    .todo-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px; background: #fff; border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 3px rgba(0,0,0,.05);
+      transition: opacity .2s, border-color .2s;
+    }
+    .todo-item.done { border-color: #f1f5f9; opacity: .6; }
+
+    .check-btn {
+      flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%;
+      border: 2px solid #cbd5e1; background: transparent;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: border-color .15s, background .15s;
+    }
+    .check-btn:hover { border-color: #34d399; }
+    .check-btn.done { background: #10b981; border-color: #10b981; }
+
+    .check-btn svg { display: none; }
+    .check-btn.done svg { display: block; }
+
+    .todo-text {
+      flex: 1; font-size: 0.875rem; line-height: 1.6; color: #374151;
+      transition: color .15s;
+    }
+    .todo-text.done { text-decoration: line-through; color: #9ca3af; }
+
+    .del-btn {
+      flex-shrink: 0; background: transparent; border: none;
+      color: #cbd5e1; cursor: pointer; padding: 4px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      transition: color .15s, background .15s;
+    }
+    .del-btn:hover { color: #f43f5e; background: #fff1f2; }
+
+    #clear-wrap { text-align: center; margin-top: 16px; }
+    #clear-btn {
+      background: none; border: none; font-size: 0.75rem;
+      color: #94a3b8; cursor: pointer; transition: color .15s;
+    }
+    #clear-btn:hover { color: #f43f5e; }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div style="margin-bottom:32px">
+      <h1>ToDoリスト</h1>
+      <p id="counter" class="hidden"></p>
+    </div>
+
+    <div class="input-row">
+      <input id="todo-input" type="text" placeholder="新しいタスクを入力..." />
+      <button id="add-btn" class="add-btn" disabled>追加</button>
+    </div>
+
+    <div id="empty-state">
+      <div class="icon">📋</div>
+      <p>タスクがありません</p>
+      <small>上から追加してください</small>
+    </div>
+
+    <ul id="todo-list" class="hidden"></ul>
+
+    <div id="clear-wrap" class="hidden">
+      <button id="clear-btn">完了済みをすべて削除</button>
+    </div>
+  </div>
+
+  <script>
+    let todos = [];
+
+    const todoInput = document.getElementById('todo-input');
+    const addBtn    = document.getElementById('add-btn');
+    const list      = document.getElementById('todo-list');
+    const empty     = document.getElementById('empty-state');
+    const counter   = document.getElementById('counter');
+    const clearWrap = document.getElementById('clear-wrap');
+    const clearBtn  = document.getElementById('clear-btn');
+
+    todoInput.addEventListener('input', () => {
+      addBtn.disabled = !todoInput.value.trim();
+    });
+
+    function render() {
+      list.innerHTML = '';
+      const done = todos.filter(t => t.completed).length;
+      const remaining = todos.length - done;
+
+      if (todos.length === 0) {
+        empty.classList.remove('hidden');
+        list.classList.add('hidden');
+        counter.classList.add('hidden');
+      } else {
+        empty.classList.add('hidden');
+        list.classList.remove('hidden');
+        counter.classList.remove('hidden');
+        counter.innerHTML = `残り <span>${remaining}</span> 件 / ${todos.length} 件`;
+      }
+      clearWrap.classList.toggle('hidden', done === 0);
+
+      todos.forEach(todo => {
+        const li = document.createElement('li');
+        li.className = 'todo-item' + (todo.completed ? ' done' : '');
+
+        const checkBtn = document.createElement('button');
+        checkBtn.className = 'check-btn' + (todo.completed ? ' done' : '');
+        checkBtn.setAttribute('aria-label', todo.completed ? '未完了に戻す' : '完了にする');
+        checkBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg>`;
+        checkBtn.onclick = () => toggle(todo.id);
+
+        const span = document.createElement('span');
+        span.className = 'todo-text' + (todo.completed ? ' done' : '');
+        span.textContent = todo.text;
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'del-btn';
+        delBtn.setAttribute('aria-label', '削除');
+        delBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5 4V2.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 .5.5V4M6 7v5M10 7v5M3 4l1 9.5a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5L13 4"/></svg>`;
+        delBtn.onclick = () => deleteTodo(todo.id);
+
+        li.append(checkBtn, span, delBtn);
+        list.appendChild(li);
+      });
+    }
+
+    function addTodo() {
+      const text = todoInput.value.trim();
+      if (!text) return;
+      todos.unshift({ id: Date.now().toString(), text, completed: false });
+      todoInput.value = '';
+      addBtn.disabled = true;
+      todoInput.focus();
+      render();
+    }
+
+    function toggle(id) {
+      todos = todos.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
+      render();
+    }
+
+    function deleteTodo(id) {
+      todos = todos.filter(t => t.id !== id);
+      render();
+    }
+
+    addBtn.onclick = addTodo;
+    todoInput.addEventListener('keydown', e => { if (e.key === 'Enter') addTodo(); });
+    clearBtn.onclick = () => { todos = todos.filter(t => !t.completed); render(); };
+
+    render();
+  </script>
+</body>
+</html>

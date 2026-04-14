@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "todo-preview",
+      "runtimeExecutable": "tclsh",
+      "runtimeArgs": ["server.tcl"],
+      "port": 3000
+    }
+  ]
+}
